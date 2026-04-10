@@ -47,41 +47,33 @@ public class TeachesService implements ITeachesService {
         Course course = courseRepository.findById(request.getCourseId()) // teach içerisinde gelen course db'de kayıtlı mı
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND));
 
-        Teaches teaches = new Teaches();
-        BeanUtils.copyProperties(request, teaches);
-        teaches.setProfessor(prof);
-        teaches.setCourse(course);
-
-        // dto döndürmeliyiz
+        Teaches teaches = new Teaches(request, prof, course);
         Teaches dbTeaches = teachesRepository.save(teaches);
+
         System.out.println("LOG INFO: teach added -> ID: " + dbTeaches.getId());
 
-        return convertToResponseDTO(dbTeaches);
+        return dbTeaches.viewAsTeachesDTO();
     }
 
     @Override
     public List<ResponseTeachesDTO> getAllTeaches() {
-        List<Teaches> teachesList = teachesRepository.findAll();
-        List<ResponseTeachesDTO> responseList = new ArrayList<>();
-        
-        for (Teaches t : teachesList) {
-            responseList.add(convertToResponseDTO(t));
-        }
-        return responseList;
+        return teachesRepository.findAll().stream()
+                .map(Teaches::viewAsTeachesDTO)
+                .toList();
     }
 
     @Override
     public ResponseTeachesDTO getTeachesById(Integer id) {
-        Teaches teaches = teachesRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_TEACH_NOT_FOUND));
-        return convertToResponseDTO(teaches);
+        return teachesRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_TEACH_NOT_FOUND))
+                .viewAsTeachesDTO();
     }
 
     @Override
     public void deleteTeachesById(Integer id) {
-        if (!teachesRepository.existsById(id)) {
-            throw new ResourceNotFoundException(ErrorMessages.ERROR_TEACH_NOT_FOUND);
-        }
+        teachesRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_TEACH_NOT_FOUND));
+
         teachesRepository.deleteById(id);
         System.out.println("LOG INFO: teach deleted -> ID: " + id);
 
@@ -94,6 +86,7 @@ public class TeachesService implements ITeachesService {
 
         Professor prof = professorRepository.findById(request.getProfessorId())
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_PROFESSOR_NOT_FOUND));
+
         Course course = courseRepository.findById(request.getCourseId())
                 .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND));
 
@@ -106,15 +99,8 @@ public class TeachesService implements ITeachesService {
         Teaches updated = teachesRepository.save(dbTeaches);
         System.out.println("LOG INFO: teach updated -> ID: " + updated.getId());
 
-        return convertToResponseDTO(updated);
+        return updated.viewAsTeachesDTO();
     }
 
-    // entity'den dto dönüşü tek noktadan yapılır
-    private ResponseTeachesDTO convertToResponseDTO(Teaches entity) {
-        ResponseTeachesDTO dto = new ResponseTeachesDTO();
-        BeanUtils.copyProperties(entity, dto);
-        dto.setProfessorName(entity.getProfessor().getName());
-        dto.setCourseName(entity.getCourse().getName());
-        return dto;
-    }
+
 }

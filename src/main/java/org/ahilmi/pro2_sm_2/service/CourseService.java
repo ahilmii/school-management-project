@@ -24,7 +24,7 @@ public class CourseService implements ICourseService{
     private final CourseRepository courseRepository;
 
     public CourseService(CourseRepository courseRepository){
-        this.courseRepository =courseRepository;
+        this.courseRepository = courseRepository;
     }
 
     public ResponseCourseDTO saveCourse(RequestCourseDTO requestCourseDTO) {
@@ -32,84 +32,53 @@ public class CourseService implements ICourseService{
             throw new ResourceAlreadyExistsException(ErrorMessages.ERROR_COURSE_ALREADY_EXIST);
         }
 
-        ResponseCourseDTO responseCourseDTO = new ResponseCourseDTO(); // response objesi oluşturldu çünkü en son cevap olark vereceğiz
-        Course course = new Course();// Db için çünkü dto ile değil entity ile çalışır
-        BeanUtils.copyProperties(requestCourseDTO, course); //DTO -> Entity dönüşümü
-        Course dbCourse = courseRepository.save(course);// Save method
+        Course course = new Course(requestCourseDTO);
+        Course dbCourse = courseRepository.save(course);
 
         System.out.println("LOG INFO: course added -> ID: " + dbCourse.getId() + ", Course: " + dbCourse.getName());
-
-        BeanUtils.copyProperties(dbCourse, responseCourseDTO); // // entity'deki verileri response DTO'ya aktarır
-        return responseCourseDTO;
+        return dbCourse.viewAsCourseDTO();
     }
 
 
     public List<ResponseCourseDTO> getAllCourses() {
-        List<ResponseCourseDTO> responseList = new ArrayList<>();
-        List<Course> courseList = courseRepository.findAll(); // SELECT * FROM course; gibi
-        for (Course course : courseList) {
-            responseList.add(convertToResponseDTO(course));
-        }
-        return responseList;
+        return courseRepository.findAll().stream().map(Course::viewAsCourseDTO).toList();
+
+        /*
+        // Lambda gösterimi (Uzun yol)
+        .map(course -> course.viewAsCourseDTO()) // akıştan gelen her bir nesne için bunu yapar map
+
+        // Method Reference gösterimi (Kısa yol)
+        .map(Course::viewAsCourseDTO)
+        */
     }
 
     public ResponseCourseDTO getCourseById(Integer id) {
-        Course course = courseRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND));
-        return convertToResponseDTO(course);
+        return courseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND))
+                .viewAsCourseDTO();
     }
 
     public void deleteCourseById(Integer id) {
-        Optional<Course> course = courseRepository.findById(id);// checking if there's a course
-        if (course.isPresent()) {
-            courseRepository.delete(course.get());
-            System.out.println("LOG INFO: course deleted -> ID: " + id);
-            return;
-        }
+        courseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND));
 
-        throw new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND);
+        courseRepository.deleteById(id);
+        System.out.println("LOG INFO: course deleted -> ID: " + id);
     }
 
     public ResponseCourseDTO updateCourseById(Integer id, RequestCourseDTO requestCourseDTO) {
-        ResponseCourseDTO responseCourseDTO = new ResponseCourseDTO();
-        Optional<Course> course = courseRepository.findById(id);
-        if (course.isPresent()) {
-            Course dbCourse = course.get();
-            dbCourse.setName(requestCourseDTO.getName());
-            dbCourse.setCredit(requestCourseDTO.getCredit());
-
-            Course updatedCourse = courseRepository.save(dbCourse);
-            System.out.println("LOG INFO: course updated -> ID: " + updatedCourse.getId());
-
-            BeanUtils.copyProperties(updatedCourse, responseCourseDTO);
-            return responseCourseDTO;
-        }
-        throw new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND);
-    }
+        Course dbCourse = courseRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(ErrorMessages.ERROR_COURSE_NOT_FOUND));
 
 
-    private ResponseCourseDTO convertToResponseDTO(Course course) {
-        ResponseCourseDTO response = new ResponseCourseDTO();
-        BeanUtils.copyProperties(course, response); // // gelen course nesnesindeki teacch harici kısımlar (name, credit)
+        // request'den gelen bilgiler ile güncelle
+        dbCourse.setName(requestCourseDTO.getName());
+        dbCourse.setCredit(requestCourseDTO.getCredit());
 
-        List<ResponseTeachesDTO> teachesList = new ArrayList<>();
+        Course updatedCourse = courseRepository.save(dbCourse);
+        System.out.println("LOG INFO: course updated -> ID: " + updatedCourse.getId());
 
-        if (course.getTeaches() != null) {
-            for (Teaches teaches : course.getTeaches()) {
-                ResponseTeachesDTO teachesDTO = new ResponseTeachesDTO();
-                teachesDTO.setId(teaches.getId());
-                teachesDTO.setProfessorName(teaches.getProfessor().getName());
-                teachesDTO.setCourseName(teaches.getCourse().getName());
-                teachesDTO.setStudentCount(teaches.getStudentCount());
-                teachesDTO.setStartDate(teaches.getStartDate());
-                teachesDTO.setEndingDate(teaches.getEndingDate());
-
-                teachesList.add(teachesDTO);
-            }
-        }
-
-        response.setTeaches(teachesList);
-        return response;
+        return updatedCourse.viewAsCourseDTO();
     }
 
 }

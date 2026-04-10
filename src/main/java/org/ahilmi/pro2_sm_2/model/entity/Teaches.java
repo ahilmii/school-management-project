@@ -4,6 +4,9 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.ahilmi.pro2_sm_2.dto.RequestTeachesDTO;
+import org.ahilmi.pro2_sm_2.dto.ResponseTeachesDTO;
+
 import java.time.LocalDate;
 
 @Entity
@@ -36,4 +39,24 @@ public class Teaches {
 
     @Column(name = "ending_date") 
     private LocalDate endingDate;
+
+
+    public Teaches(RequestTeachesDTO requestDTO, Professor professor, Course course) {
+        this.professor = professor;
+        this.course = course;
+        this.studentCount = requestDTO.getStudentCount();
+        this.startDate = requestDTO.getStartDate();
+        this.endingDate = requestDTO.getEndingDate();
+    }
+
+    public ResponseTeachesDTO viewAsTeachesDTO() {
+        ResponseTeachesDTO dto = new ResponseTeachesDTO();
+        dto.setId(this.id);
+        dto.setProfessorName(this.professor.getName());
+        dto.setCourseName(this.course.getName());
+        dto.setStudentCount(this.studentCount);
+        dto.setStartDate(this.startDate);
+        dto.setEndingDate(this.endingDate);
+        return dto;
+    }
 }
